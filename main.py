@@ -2,6 +2,10 @@ from flask import Flask, request, jsonify, render_template, send_file
 from flask_cors import CORS 
 import fitz
 import os
+from sklearn.cluster import KMeans
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
 app = Flask(__name__)
 
 CORS(app)
@@ -45,6 +49,39 @@ def upload_pdf():
     # Return the extracted text as a JSON response
     return jsonify({"extracted_text": text})
 
+
+def recommend_jobs(user_skills, job_openings):
+    vectorizer = TfidfVectorizer(stop_words='english')
+    tfidf_matrix = vectorizer.fit_transform(job_openings)
+
+    num_clusters = 2 #2 clusters
+    kmeans = KMeans(n_clusters=num_clusters, random_state=0)
+    kmeans.fit(tfidf_matrix)
+
+    centroids = kmeans.cluster_centers_
+
+    user_tfidf = vectorizer.transform([user_skills])
+    cluster_similarities = cosine_similarity(user_tfidf, centroids)
+
+    most_similar_cluster = cluster_similarities.argmax()
+
+    cluster_jobs_indices = [i for i, label in enumerate(kmeans.labels_) if label == most_similar_cluster]
+
+    recommended_jobs = [job_openings[i] for i in cluster_jobs_indices]
+    return recommended_jobs
+
+@app.route('/recommend_jobs', methods=['POST'])
+def recommend_jobs_route():
+    data = request.get_json()
+    user_skills = data.get('user_skills', '')
+    job_openings = data.get('job_openings', [])
+
+    if not user_skills or not job_openings:
+        return jsonify({"error": "Both user_skills and job_openings must be provided"}), 400
+
+    recommended_jobs = recommend_jobs(user_skills, job_openings)
+
+    return jsonify({"recommended_jobs": recommended_jobs})
 
 
 if __name__ == '__main__':

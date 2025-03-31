@@ -52,14 +52,20 @@ def upload_pdf():
 
 def recommend_jobs(user_skills, job_openings, similarity_threshold=0.3):
     vectorizer = TfidfVectorizer(stop_words='english')
-    tfidf_matrix = vectorizer.fit_transform(job_openings)
     
+    job_requirements = [job['requirement'] for job in job_openings]
+    
+    tfidf_matrix = vectorizer.fit_transform(job_requirements)
     user_tfidf = vectorizer.transform([user_skills])
     
     similarities = cosine_similarity(user_tfidf, tfidf_matrix)
-        
+    
     recommended_jobs = [
-        job_openings[i] for i in range(len(similarities[0])) if similarities[0][i] > similarity_threshold
+        {
+            "job_id": job_openings[i]["job_id"],
+            "requirement": job_openings[i]["requirement"]
+        } 
+        for i in range(len(similarities[0])) if similarities[0][i] > similarity_threshold
     ]
     
     return recommended_jobs

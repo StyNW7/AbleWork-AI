@@ -50,24 +50,18 @@ def upload_pdf():
     return jsonify({"extracted_text": text})
 
 
-def recommend_jobs(user_skills, job_openings):
+def recommend_jobs(user_skills, job_openings, similarity_threshold=0.3):
     vectorizer = TfidfVectorizer(stop_words='english')
     tfidf_matrix = vectorizer.fit_transform(job_openings)
-
-    num_clusters = 2 #2 clusters
-    kmeans = KMeans(n_clusters=num_clusters, random_state=0)
-    kmeans.fit(tfidf_matrix)
-
-    centroids = kmeans.cluster_centers_
-
+    
     user_tfidf = vectorizer.transform([user_skills])
-    cluster_similarities = cosine_similarity(user_tfidf, centroids)
-
-    most_similar_cluster = cluster_similarities.argmax()
-
-    cluster_jobs_indices = [i for i, label in enumerate(kmeans.labels_) if label == most_similar_cluster]
-
-    recommended_jobs = [job_openings[i] for i in cluster_jobs_indices]
+    
+    similarities = cosine_similarity(user_tfidf, tfidf_matrix)
+        
+    recommended_jobs = [
+        job_openings[i] for i in range(len(similarities[0])) if similarities[0][i] > similarity_threshold
+    ]
+    
     return recommended_jobs
 
 @app.route('/recommend_jobs', methods=['POST'])

@@ -5,8 +5,17 @@ import os
 from sklearn.cluster import KMeans
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from huggingface_hub import InferenceClient
+from dotenv import load_dotenv
 
 app = Flask(__name__)
+
+api_key = os.getenv("HF_API_KEY")
+
+client = InferenceClient(
+    provider="nebius",
+    api_key=api_key,
+)
 
 CORS(app)
 
@@ -83,6 +92,38 @@ def recommend_jobs_route():
 
     return jsonify({"recommended_jobs": recommended_jobs})
 
+@app.route('/review_cv', methods=['POST'])
+def ask():
+    try:
+        extracted_text = request.json.get('extracted_text')
+
+        if not extracted_text:
+            return jsonify({"error": "No question provided"}), 400
+
+        user_message = f'''
+        Instruction: Please review the following CV for clarity, formatting, and overall effectiveness. Your feedback should focus on the content, highlighting areas for improvement such as spelling errors, missing or vague information, unclear sections, and suggestions for enhancing readability. You do not need to evaluate the CV's appearance (e.g., layout, bullet points, or spacing), only the text itself.
+
+        Context: You are a career advice expert tasked with providing constructive feedback on this CV. Please focus on improving the clarity, conciseness, and impact of the content. The following is the text content of the CV:
+        {extracted_text}
+        
+        Output Format: Provide feedback in bullet points. You only output 2 sections: the strengths and areas for improvement. Use a friendly and constructive tone. You do not need to output the text from the CV again. 
+        '''
+
+        completion = client.chat.completions.create(
+            model="microsoft/Phi-3-mini-4k-instruct",
+            messages=[{
+                "role": "user",
+                "content": user_message
+            }],
+            max_tokens=500
+        )
+
+        answer = completion.choices[0].message.content
+
+        return jsonify({"answer": answer})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

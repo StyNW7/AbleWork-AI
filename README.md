@@ -11,3 +11,5 @@ pip install flask-cors
 pip install pymupdf
 
 pip install scikit-learn
+
+pip install huggingface_hub

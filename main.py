@@ -38,18 +38,34 @@ def extract_text_from_pdf(pdf_path):
     
     return text
 
-@app.route('/upload', methods=['POST'])
-def upload_pdf():
-    # Check if a file is part of the request
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
+# @app.route('/upload', methods=['POST'])
+# def upload_pdf():
+#     # Check if a file is part of the request
+#     if 'file' not in request.files:
+#         return jsonify({"error": "No file part"}), 400
     
-    file = request.files['file']
+#     file = request.files['file']
     
+#     # If no file is selected
+#     if file.filename == '':
+#         return jsonify({"error": "No selected file"}), 400
+    
+#     # Save the file to the server
+#     file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+#     file.save(file_path)
+
+#     # Extract text from the uploaded PDF
+#     text = extract_text_from_pdf(file_path)
+
+#     # Return the extracted text as a JSON response
+#     return jsonify({"extracted_text": text})
+
+def handle_file_upload(file):
+
     # If no file is selected
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
-    
+
     # Save the file to the server
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
     file.save(file_path)
@@ -57,8 +73,7 @@ def upload_pdf():
     # Extract text from the uploaded PDF
     text = extract_text_from_pdf(file_path)
 
-    # Return the extracted text as a JSON response
-    return jsonify({"extracted_text": text})
+    return text
 
 
 def recommend_jobs(user_skills, job_openings, similarity_threshold=0.3):
@@ -97,7 +112,13 @@ def recommend_jobs_route():
 @app.route('/review_cv', methods=['POST'])
 def ask():
     try:
-        extracted_text = request.json.get('extracted_text')
+        if 'file' not in request.files:
+            return jsonify({"error": "No file part"}), 400
+
+        file = request.files['file']
+    
+        extracted_text = handle_file_upload(file)
+        # extracted_text = request.json.get('extracted_text')
 
         if not extracted_text:
             return jsonify({"error": "No question provided"}), 400

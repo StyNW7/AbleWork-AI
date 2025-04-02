@@ -7,6 +7,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from huggingface_hub import InferenceClient
 from dotenv import load_dotenv
+import json
+import re
 
 app = Flask(__name__)
 
@@ -106,7 +108,19 @@ def ask():
         Context: You are a career advice expert tasked with providing constructive feedback on this CV. Please focus on improving the clarity, conciseness, and impact of the content. The following is the text content of the CV:
         {extracted_text}
         
-        Output Format: Provide feedback in bullet points. You only output 2 sections: the strengths and areas for improvement. Use a friendly and constructive tone. You do not need to output the text from the CV again. 
+        Output Format: You only output 2 sections: the strengths and areas for improvement. The output must be in the following exact JSON format:
+        "strengths": [
+            "strength 1.",
+            "strength 2.",
+            "strength 3."
+        ],
+        "improvements": [
+            "improvement 1.",
+            "improvement 2.",
+            "improvement 3."
+        ]
+
+        Make sure that your response strictly adheres to this structure. Do not include any additional text or explanations. Only output the JSON. 
         '''
 
         completion = client.chat.completions.create(
@@ -119,11 +133,28 @@ def ask():
         )
 
         answer = completion.choices[0].message.content
+        json_pattern = r'\{(?:[^{}]*|\{(?:[^{}]*|\{[^{}]*\})*\})*\}'
 
-        return jsonify({"answer": answer})
+        match = re.search(json_pattern, answer)
+
+        if not match:
+            return jsonify({"error": "No valid JSON found in the response"}), 400
+
+        json_string = match.group(0).strip()
+
+        try:
+            response_json = json.loads(json_string)
+        except json.JSONDecodeError as e:
+            print(f"Error parsing JSON: {e}")
+            return jsonify({"error": "Failed to parse model response", "details": str(e)}), 500
+
+        return jsonify(response_json)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
+
+

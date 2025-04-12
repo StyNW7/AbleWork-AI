@@ -20,6 +20,8 @@ pip install scikit-learn
 
 pip install huggingface_hub
 
+pip install dotenv
+
 Deactivate Virtual Environment:
 
 deactivate 

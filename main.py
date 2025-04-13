@@ -89,7 +89,8 @@ def recommend_jobs(user_skills, job_openings, similarity_threshold=0.3):
     recommended_jobs = [
         {
             "job_id": job_openings[i]["job_id"],
-            "requirement": job_openings[i]["requirement"]
+            "requirement": job_openings[i]["requirement"],
+            "similarity": similarities[0][i] #new
         } 
         for i in range(len(similarities[0])) if similarities[0][i] > similarity_threshold
     ]

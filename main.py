@@ -28,6 +28,7 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# Function to extract text from pdf
 def extract_text_from_pdf(pdf_path):
     doc = fitz.open(pdf_path)
     
@@ -38,28 +39,7 @@ def extract_text_from_pdf(pdf_path):
     
     return text
 
-# @app.route('/upload', methods=['POST'])
-# def upload_pdf():
-#     # Check if a file is part of the request
-#     if 'file' not in request.files:
-#         return jsonify({"error": "No file part"}), 400
-    
-#     file = request.files['file']
-    
-#     # If no file is selected
-#     if file.filename == '':
-#         return jsonify({"error": "No selected file"}), 400
-    
-#     # Save the file to the server
-#     file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-#     file.save(file_path)
-
-#     # Extract text from the uploaded PDF
-#     text = extract_text_from_pdf(file_path)
-
-#     # Return the extracted text as a JSON response
-#     return jsonify({"extracted_text": text})
-
+# Function for uploading file
 def handle_file_upload(file):
 
     # If no file is selected
@@ -75,7 +55,7 @@ def handle_file_upload(file):
 
     return text
 
-
+# Function to get job recommendation
 def recommend_jobs(user_skills, job_openings, similarity_threshold=0.3):
     vectorizer = TfidfVectorizer(stop_words='english')
     
@@ -83,20 +63,23 @@ def recommend_jobs(user_skills, job_openings, similarity_threshold=0.3):
     
     tfidf_matrix = vectorizer.fit_transform(job_requirements)
     user_tfidf = vectorizer.transform([user_skills])
-    
+
+    #use cosine_similarity to compare job requirements with user skills
     similarities = cosine_similarity(user_tfidf, tfidf_matrix)
     
+    #if similarity is high enough, return job id, requirements, and similarity score
     recommended_jobs = [
         {
             "job_id": job_openings[i]["job_id"],
             "requirement": job_openings[i]["requirement"],
-            "similarity": similarities[0][i] #new
+            "similarity": similarities[0][i]
         } 
         for i in range(len(similarities[0])) if similarities[0][i] > similarity_threshold
     ]
     
     return recommended_jobs
 
+# API route for job recommendation
 @app.route('/recommend_jobs', methods=['POST'])
 def recommend_jobs_route():
     data = request.get_json()
@@ -110,6 +93,7 @@ def recommend_jobs_route():
 
     return jsonify({"recommended_jobs": recommended_jobs})
 
+# API route for CV analysis
 @app.route('/review_cv', methods=['POST'])
 def ask():
     try:
@@ -117,9 +101,9 @@ def ask():
             return jsonify({"error": "No file part"}), 400
 
         file = request.files['file']
-    
+
+        #get text from pdf
         extracted_text = handle_file_upload(file)
-        # extracted_text = request.json.get('extracted_text')
 
         if not extracted_text:
             return jsonify({"error": "No question provided"}), 400
@@ -145,6 +129,7 @@ def ask():
         Make sure that your response strictly adheres to this structure. Do not include any additional text or explanations. Only output the JSON. 
         '''
 
+        #call model to analyze CV
         completion = client.chat.completions.create(
             model="microsoft/Phi-3-mini-4k-instruct",
             messages=[{
@@ -154,6 +139,7 @@ def ask():
             max_tokens=500
         )
 
+        #return analysis result
         answer = completion.choices[0].message.content
         json_pattern = r'\{(?:[^{}]*|\{(?:[^{}]*|\{[^{}]*\})*\})*\}'
 
